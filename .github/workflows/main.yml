@@ -1,4 +1,4 @@
-name: Build APK from ZIP
+name: Build APK from ZIP (Fixed - No Compromise)
 
 on:
   push:
@@ -26,19 +26,28 @@ jobs:
           if [ -d "project/app" ]; then
             cp -r project/app/* .
             cp -r project/gradle* . 2>/dev/null || true
+            if [ -d "project/gradle" ]; then cp -r project/gradle .; fi
           else
             cp -r project/* .
           fi
           rm -rf project *.zip
 
-      - name: Give Permissions
-        run: chmod +x ./gradlew
+      - name: Generate Gradle Wrapper (if missing)
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "Gradle Wrapper not found. Generating..."
+            gradle wrapper --gradle-version 8.0
+          else
+            chmod +x ./gradlew
+          fi
 
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      - name: Build Debug APK with Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MyApp
+          name: FolderCam-Manager
           path: app/build/outputs/apk/debug/*.apk
