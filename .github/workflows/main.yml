@@ -1,4 +1,4 @@
-name: Build APK from ZIP (Final - Guaranteed)
+name: Build APK (Fixed Gradle Version)
 
 on:
   push:
@@ -9,8 +9,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -20,36 +19,30 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34'
 
-      - name: Unzip and Organize Project
+      - name: Accept Android Licenses
+        run: yes | sdkmanager --licenses || true
+
+      - name: Unzip and Prepare Project
         run: |
-          # सबसे पहले कोई भी पुरानी फ़ाइलें हटाओ (रिपो की साफ-सफाई)
           rm -rf app gradle build .gradle build.gradle settings.gradle gradlew* 2>/dev/null || true
-          
-          # ZIP ढूंढो और अनज़िप करो
           ZIP_FILE=$(ls *.zip | head -1)
           echo "Found ZIP: $ZIP_FILE"
           unzip -q "$ZIP_FILE" -d extracted
-          
-          # अगर ZIP के अंदर app फोल्डर है, तो सब कुछ रूट पर लाओ
           if [ -d "extracted/app" ]; then
-            echo "Moving project files to root..."
             cp -r extracted/* .
           else
-            echo "Project is already at root level"
             cp -r extracted/* .
           fi
-          
-          # सफाई
           rm -rf extracted "$ZIP_FILE"
 
-      - name: Setup Gradle Wrapper
+      - name: Setup Gradle Wrapper (Correct Version)
         run: |
-          if [ ! -f "./gradlew" ]; then
-            echo "Generating Gradle Wrapper..."
-            gradle wrapper --gradle-version 8.0
-          fi
-          chmod +x ./gradlew
+          # सीधे Gradle 8.0 का Wrapper बनाओ
+          gradle wrapper --gradle-version 8.0 --no-daemon
+          chmod +x gradlew
 
       - name: Build Debug APK
         run: |
