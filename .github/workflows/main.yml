@@ -1,4 +1,4 @@
-name: Build APK from ZIP (Fixed - No Compromise)
+name: Build APK from ZIP (Final - Guaranteed)
 
 on:
   push:
@@ -9,9 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -20,33 +21,41 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Unzip and Prepare Project
+      - name: Unzip and Organize Project
         run: |
-          unzip -q *.zip -d project
-          if [ -d "project/app" ]; then
-            cp -r project/app/* .
-            cp -r project/gradle* . 2>/dev/null || true
-            if [ -d "project/gradle" ]; then cp -r project/gradle .; fi
+          # सबसे पहले कोई भी पुरानी फ़ाइलें हटाओ (रिपो की साफ-सफाई)
+          rm -rf app gradle build .gradle build.gradle settings.gradle gradlew* 2>/dev/null || true
+          
+          # ZIP ढूंढो और अनज़िप करो
+          ZIP_FILE=$(ls *.zip | head -1)
+          echo "Found ZIP: $ZIP_FILE"
+          unzip -q "$ZIP_FILE" -d extracted
+          
+          # अगर ZIP के अंदर app फोल्डर है, तो सब कुछ रूट पर लाओ
+          if [ -d "extracted/app" ]; then
+            echo "Moving project files to root..."
+            cp -r extracted/* .
           else
-            cp -r project/* .
+            echo "Project is already at root level"
+            cp -r extracted/* .
           fi
-          rm -rf project *.zip
+          
+          # सफाई
+          rm -rf extracted "$ZIP_FILE"
 
-      - name: Generate Gradle Wrapper (if missing)
+      - name: Setup Gradle Wrapper
         run: |
           if [ ! -f "./gradlew" ]; then
-            echo "Gradle Wrapper not found. Generating..."
+            echo "Generating Gradle Wrapper..."
             gradle wrapper --gradle-version 8.0
-          else
-            chmod +x ./gradlew
           fi
+          chmod +x ./gradlew
 
-      - name: Build Debug APK with Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          arguments: assembleDebug
+      - name: Build Debug APK
+        run: |
+          ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: FolderCam-Manager
